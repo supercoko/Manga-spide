@@ -1,0 +1,556 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><title>萌兔本地漫画阅读器</title><meta name="Keywords" content="html5"><meta name="Description" content="萌兔下拉式漫画阅读器，你值得拥有">
+
+<link href="css/readstyle.css" rel="stylesheet">
+<link href="css/common.css" rel="stylesheet" type="text/css" media="all">
+<link href="css/styles.css" rel="stylesheet" type="text/css" media="all">
+<link rel="shortcut icon" href="img/favicon.ico" />
+<meta charset="utf-8" />
+<meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1" />
+
+
+                                               <script src="js/unlib/uncompress.js"></script>
+                                               <script src="js/polyfill.js"></script>
+                                               <script src="js/mobile.js"></script>
+
+
+                                               <script type="text/javascript" src="js/custom-unzip.js"></script>
+
+
+
+<script src="js/smoothscroll.js"></script>
+<script src="js/custom-scroll.js"></script>
+<script src="js/jquery-bg.js"></script>
+<script src="js/cartoon_common.js"></script>
+<script src="js/scroll-bg.js"></script>
+
+
+
+<script>
+var template = "default";
+var comicid = 1;
+var viewid = 1;
+var allpage = 1;
+var cid = 1;
+var webImgUrl = "http://wusagi.pw/";
+var WebimgServer = new Array();
+var WebimgServerURL = new Array();
+WebimgServer[0]="普通";
+
+</script>
+
+<link href="css/bdsstyle.css" rel="stylesheet" type="text/css">
+
+
+</head>
+
+
+
+
+<body class="body-black">
+
+<div id="_logo" class="logoo">
+<img  id="logo_pic" src="img/logo_01.png" width="265"  />
+</div>
+
+    <aside class="green">Working...</aside>
+<div id="hidediv" style="width:100%; ">
+
+    <details id="pcds" open="">
+        <summary>萌兔本地漫画下拉式阅读器</summary>
+        <div>
+            <p>各位老爷们好，我是<a href="http://weibo.com/maybreath/" target="_blank">@MAY-BREATH</a></p>
+            <p>又到了一年一度的CM盛会了，准备好精神食量了吗</p>
+            <p>直接把文件夹或者图片全选丢进来就可以下拉观看喽</p>
+            <br />
+            <p>目前支持批量读取ZIP、RAR、图片、文件夹</p>
+            <p>滚轮步长、自适应宽高、更改背景色等</p>
+            <br />
+            <p><b>受浏览器限制，压缩包太大可能加载不出来(100MB+)</b></p>
+            <p><b>文件夹图片可以无限量添加，尽量解压了再放进来吧</b></p>
+            <br />
+            <p>后续会陆续添加书架、书签、跳转页面等等。</p>
+            <p>但是好像很多设置了密码，所以我要怠工。</p>
+            <br />
+            <p><b>放大:CTRL+加号 缩小CTRL+减号 还原CTRL+0</b> </p>
+            <p><b>文件夹拖放支持浏览器:</b> 内核为 Chrome 22以上.</p>
+        </div>
+    </details>
+
+
+<section id="droparea">
+    <div dropzone=dropzone webkitdropzone="copy file:image/png file:image/gif file:image/jpeg file:application/zip file:application/rar file:application/tar" class="centerall">
+        把图片或者文件夹拖这来
+        <div class="arrow left centerall ascolumn">
+            <img src="img/curved_arrow.png" />
+            <span>支持多选文件夹和多选压缩包！也可以混合一起拖进来！</span>
+        </div>
+    </div>
+</section>
+
+  
+
+<div class="sdz03"><b></b><span>或者</span><b></b></div>
+<section id="fileinput">
+  <div>
+      <input type="file" multiple=multiple />
+    <div class="arrow up centerall ascolumn">
+      <img src="img/curved_arrow.png">
+      <span>打开浏览器文件选择框,多选图片和压缩包也可以放入!</span>
+    </div>
+  </div>
+</section>
+
+
+
+    <script language="JavaScript" type="text/javascript">
+
+         //支持拖入的文件列表
+        var supportTypes = ['image/png', 'image/jpeg', 'image/gif', 'application/zip', 'application/rar', 'application/tar']
+
+        window.requestFileSystem = window.requestFileSystem ||
+                                   window.webkitRequestFileSystem;
+        window.resolveLocalFileSystemURL = window.webkitResolveLocalFileSystemURL ||
+            window.webkitResolveLocalFileSystemURL;
+        var fileList2 = [];
+
+
+        var DONE_MSG = '载入完成';
+        var NOT_IMG_MSG = '这玩意儿根本不是图片啊..';
+        //轮询标记位
+        var lunxun = 0;
+        var lunxunCount = 0;
+        var lunxunCountIncludingZIP = 0;
+        function setLoadingTxt(obj) {
+            var el = document.querySelector('aside');
+            if (obj && obj.txt) {
+                var stayOpen = obj.stayOpen || false;
+                var isError = obj.error || false;
+
+                if (isError) {
+                    el.classList.add('red');
+                }
+
+                el.textContent = obj.txt;
+                el.classList.add('show');
+
+                if (!stayOpen) {
+                    window.setTimeout(setLoadingTxt, 3000);
+                }
+            } else {
+                el.classList.remove('show');
+                el.classList.remove('red');
+            }
+        }
+
+
+        // 递归调用
+        function readDirectory(entries) {
+
+            //文件总数 不包括文件夹
+            lunxunCount += entries.length;
+
+            for (i = 0; i < entries.length; i++) {
+
+                if (entries[i].isDirectory == null) continue;
+
+                if (entries[i].isDirectory) {
+                    lunxunCount -= 1;
+
+                    var directoryReader = entries[i].createReader();
+                    getAllEntries(
+                            directoryReader,
+                            readDirectory
+                        );
+
+                } else {
+                    entries[i].file(appendFile, errorHandler);
+                }
+            }
+        }
+
+
+        function appendFile(file) {
+
+            console.log(file.name);
+
+            if (file.type === 'text/plain')
+                appendTextFile(file);
+
+            if (supportTypes.indexOf(file.type) > -1)
+                appendImageFile(file);
+            else {
+
+                if(isSupportType(file.name))
+                    appendImageFile(file);
+            }
+        }
+
+
+        function appendImageFile(file) {
+
+
+          //  console.log(window.URL.createObjectURL(file));
+
+            //fileList2.push(window.URL.createObjectURL(file));
+            
+            pushIntoList(file);
+            lunxun += 1;
+ 
+           // console.log(fileList2.length);
+
+        }
+
+
+
+        // This is needed to get all directory entries as one
+        // call of readEntries may not return all items. Works a
+        // bit like stream reader.
+        function getAllEntries(directoryReader, callback) {
+            var entries = [];
+            var readEntries = function () {
+                directoryReader.readEntries(function (results) {
+                    if (!results.length) {
+                        //entries.sort();
+                        callback(entries);
+                    } else {
+                        entries = entries.concat(toArray(results));
+                        readEntries();
+                    }
+                }, errorHandler);
+            };
+
+            readEntries();
+        }
+
+
+        function toArray(list) {
+            return Array.prototype.slice.call(list || [], 0);
+        }
+
+        function errorHandler(e) {
+            console.log('FileSystem API error code: ' + e.code)
+        }
+
+
+        function onChange(e) {
+            e.stopPropagation();
+            e.preventDefault();
+
+   
+            var files = e.target.files;
+            lunxunCount = files.length;
+
+            setLoadingTxt({
+                txt: '正在预读图片...',
+                stayOpen: true
+            });
+
+
+            for (var i = 0, len = files.length; i < len; i++) {
+              
+                appendFile(files.item(i));
+                
+
+            }
+		
+            temp = 0;
+
+            goo = self.setInterval("clock()", 100)
+
+        }
+
+        function onError(e) {
+            switch (e.code) {
+                case FileError.INVALID_MODIFICATION_ERR:
+                    setLoadingTxt({
+                        txt: 'Error: that directory path already exists',
+                        error: true
+                    });
+                    break;
+                default:
+                    setLoadingTxt({ txt: 'Error code: ' + e.code, error: true });
+                    break;
+            }
+        }
+
+        function showtip()
+        {
+
+            if (fileList2.length >= 1000) {
+
+                setLoadingTxt({
+                    txt: '前方检测到核能反应！已载入' + fileList2.length + '张图片',
+                    stayOpen: false,
+                    error: true
+                });
+
+            } else if (fileList2.length >= 300) {
+                setLoadingTxt({
+                    txt: '要升天了！已载入' + fileList2.length + '张图片',
+                    stayOpen: false,
+                });
+            }
+            else {
+                setLoadingTxt({
+                    txt: '已载入:' + fileList2.length + '张图片',
+                    stayOpen: false,
+
+                });
+            }
+
+        }
+
+        var temp = 0;
+        var chaoshi = 0;
+        
+
+        function clock() {
+            chaoshi++;
+            //如果半秒内数组不再增加 则判定结束
+            if (fileList2.length >0) {
+               
+
+
+
+                clearTimeout(goo);
+               // console.log('获取结束总共');
+               // console.log(fileList2.length);
+                showtip();
+               // console.log(fileList2.length);
+                //var filesDiv = document.querySelector('#files');
+               // filesDiv.innerHTML = fileList2.join('\n');
+                reloadmyson();
+
+
+            }
+            else {
+                temp = fileList2.length;
+            }
+
+            if (chaoshi > 50)
+            {
+                clearTimeout(goo);
+
+                setLoadingTxt({
+                    txt: '失败！载入了不可接受的文件！',
+                    stayOpen: false,
+                    error: true
+
+                });
+
+                chaoshi = 0;
+
+
+            }
+
+
+           
+        }
+
+
+        function onDrop(e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+
+            setLoadingTxt({
+                txt: '正在预读图片...',
+                stayOpen: true
+            });
+
+
+
+            //业界毒瘤ie无法支持文件夹拖放 
+            if (!!window.ActiveXObject || "ActiveXObject" in window) { // IE 
+               
+
+                var files = e.dataTransfer.files
+
+                lunxunCount = files.length;
+
+                setLoadingTxt({
+                    txt: '正在预读图片...',
+                    stayOpen: true
+                });
+
+
+                for (var i = 0, len = files.length; i < len; i++) {
+
+                    appendFile(files.item(i));
+
+
+                }
+
+                temp = 0;
+
+                goo = self.setInterval("clock()", 1000)
+
+
+
+                return;
+
+
+
+            } 
+
+
+         
+
+
+
+
+            var length = e.dataTransfer.items.length;
+            if (length > -1) {
+
+            }
+
+            for (var i = 0; i < length; i++) {
+                var entries = [];
+                entries[0] = e.dataTransfer.items[i].webkitGetAsEntry();
+                readDirectory(entries);
+            }
+          
+            temp = 0;
+
+             goo = self.setInterval("clock()", 100)
+   
+        }
+
+        function init() {
+            document.querySelector('input[type="file"]').addEventListener('change', onChange);
+
+            var dropZone = document.querySelector('[dropzone]');
+
+            dropZone.addEventListener('drop', onDrop);
+
+            dropZone.addEventListener('dragover', function (e) {
+                e.preventDefault(); // Necessary. Allows us to drop.
+
+                var imgPre = document.getElementById('logo_pic');
+                imgPre.src = 'img/logo_02.png';
+
+            });
+
+            dropZone.addEventListener('dragenter', function (e) {
+                e.target.classList.add('active');
+            });
+
+            dropZone.addEventListener('dragleave', function (e) {
+                e.target.classList.remove('active');
+
+
+                var imgPre = document.getElementById('logo_pic');
+                imgPre.src = 'img/logo_01.png';
+
+            });
+
+            window.addEventListener('keydown', function (e) {
+                if (e.keyCode == 27) { // ESC
+                    document.querySelector('details').open = false;
+                }
+            });
+
+
+        }
+
+        init();
+    </script>
+
+<!-- JINTOU{ -->
+</div>
+
+
+
+<!-- 头部{ -->
+    <div id="welcometitle" style="display:none;">
+        <h1 style=" text-align:center;margin-bottom:70px; margin-top:20px; color:#eee;=color:#eee; font-size:50px;">
+        萌兔本地漫画阅读器</h1>
+        <h2 style=" text-align:center; margin-bottom:10px; color:#eee; font-size:20px;">祝您用餐愉快√</h2>
+    </div>
+<!-- }头部-->
+
+<div class="img-box J_shareContent" id="pic-list" style="cursor: auto;">
+
+
+<!-- 版权{ -->
+    
+<div id="layoutbt" class="layout"><br>copyright ©2017 <a href="http://wusagi.pw/">萌兔本地阅读器</a> WUSAGI.PW All Rights Reserved 
+<script type="text/javascript">var cnzz_protocol = (("https:" == document.location.protocol) ? " https://" : " http://");document.write(unescape("%3Cspan id='cnzz_stat_icon_1261121906'%3E%3C/span%3E%3Cscript src='" + cnzz_protocol + "s4.cnzz.com/z_stat.php%3Fid%3D1261121906' type='text/javascript'%3E%3C/script%3E"));</script>
+
+</div>
+
+<p><!-- }版权 --></p>
+<p>&nbsp;</p>
+
+<!--settools-->
+<div class="actions-tips" id="actions-tips"><i></i><a class="btn-close J_btnClose" id="tips_2" href="javascript:;">我在这里</a></div><div class="actions-box" id="actions-box"><div class="btn"><i></i></div><ul><li class="read-1"><a id="btn-read" href="javascript:;">打开新本子</a></li><li class="setting"><a id="btn-setting" href="javascript:;">设置</a></li><li class="light-2"><a id="btn-light" href="javascript:;">开灯</a></li><li class="report"><a id="btn-find" href="javascript:;">报错</a></li><li class="share"><a id="btn-share" href="javascript:;">分享</a></li></ul></div><script>KISSDW.fixedPosition("#actions-tips", { bottom: 45 });KISSDW.fixedPosition("#actions-box", { bottom: 20 });$(".actions-box .btn").click(function () { $(this).parent().toggleClass("actions-box-open");});</script><div class="pop-box" id="win-setting" style="display:none;"><div class="box-hd"><h3 class="title">观看设置</h3><a title="关闭" class="btn-close J_btnClose" href="javascript:;">关闭</a></div><div class="box-bd"><dl><dt>背景颜色</dt><dd id="setting_bg_color"><a class="bg-white" href="javascript:;"></a><a class="bg-black" href="javascript:;"></a><a class="bg-gray" href="javascript:;"></a><a class="bg-orange" href="javascript:;"></a><a class="bg-blue" href="javascript:;"></a><a class="bg-green" href="javascript:;"></a><a class="bg-pink" href="javascript:;"></a></dd> 需要开灯才生效</dl><dl><dt>大图自动缩小</dt><dd><input id="setting_image_auto_size_off" type="checkbox" checked="checked"></dd></dl><dl><dt>开启实验平滑滚动(须滚轮步进需要大于120)</dt><dd><input id="setting_image_auto_smooth_on" type="checkbox" ></dd></dl><dl><dt>快捷设置</dt><dd><input class="text" id="pre_key" type="text" value="Q"> 上一页 &nbsp;&nbsp;<input class="text" id="next_key" type="text" value="A"> 下一页 <span id="win-setting-msg" style="color: red; padding-left: 10px; font-size: 12px; display: none;"></span> (翻页状态下才有效)</dd></dl><dl><dt>滚轮步进像素(滚轮一次滚多远)</dt><dd id="setting_scroll_step"><input name="scroll_step_input" type="radio" value="0" /> 浏览器默认(120px) <input name="scroll_step_input" type="radio" value="80" /> 160像素 <input name="scroll_step_input" type="radio" value="90" /> 180像素 <input name="scroll_step_input" type="radio" value="100" /> 200像素<input name="scroll_step_input" type="radio" value="125" /> 250像素<br> <input name="scroll_step_input" type="radio" value="150" /> 300像素<input name="scroll_step_input" type="radio" value="175" /> 350像素<input name="scroll_step_input" type="radio" value="200" /> 400像素<input name="scroll_step_input" type="radio" value="250" /> 500像素<input name="scroll_step_input" type="radio" value="350" /> 700像素 <input name="scroll_step_input" type="radio" value="450" /> 900像素 </dd></dl></br>&nbsp;<div class="btn-box"><a id="setting_submit" href="javascript:;">确定</a><a class="J_btnClose" id="setting_cancel" href="javascript:;">取消</a></div></div></div><div class="pop-box" id="win-find" style="display:none;"><div class="box-hd"><h3 class="title">别提交了，这功能压根没做</h3><a title="关闭" class="btn-close J_btnClose" href="javascript:;">关闭</a></div><div class="box-bd"><p id="bug_title"></p><ul class="clearfix" id="bug_type">  <li class="li-1"><input type="checkbox" value="赶紧更新新功能">赶紧更新新功能</li><li class="li-2"><input type="checkbox" value="图片不显示"> 图片不显示</li><li class="li-3"><input type="checkbox" value="移动端不能用"> 移动端不能用</li><li class="li-1"><input type="checkbox" value="浏览器崩溃"> 浏览器崩溃</li><li class="li-2"><input type="checkbox" value="全都是泡沫"> 全都是泡沫</li><li class="li-3"><input type="checkbox" value="一刹那火花"> 一刹那火花</li></ul><div class="textarea-box"><textarea id="bug_description"></textarea></div><div class="btn-box"><a id="bug_submit" href="javascript:;">确定</a><a class="J_btnClose" id="bug_cancel" href="javascript:;">取消</a></div></div></div><div class="pop-box" id="win-share" style="display:none;"><div class="box-hd"><h3 class="title">一键分享</h3><a title="关闭" class="btn-close J_btnClose" href="javascript:;">关闭</a></div><div class="box-bd"><dl><dd>纵使你有一颗热爱分享的心，但是只能放在本地阅览的漫画，怎么说也不好　分享出去啊，如果真的很想很想分享的话，请微博私信分享给我好吗?</br><a href="http://weibo.com/maybreath/" target="_blank">Send to -> MAY-BREATH</a></dd>
+
+
+
+<style>
+.mod-share{overflow:hidden;height:20px;line-height:20px;padding:5px;border:1px #CCC solid;background:url(/images/bgs_share_system.png) repeat-x 0 0;}
+.mod-share span.copy-url,.mod-share span.add-favorite{float:left;margin-right:5px;cursor:pointer;padding-left:20px;}
+.mod-share span.copy-url{background:url(/images/bgs_share_system.png) no-repeat 2px -38px;}
+.mod-share span.add-favorite{background:url(/images/bgs_share_system.png) no-repeat 2px -68px;}
+.mod-share .mod-social-share{float:right;padding:0;margin:2px 0 0;clear:none;}
+.mod-share .mod-social-share b,
+.mod-share .mod-social-share a{float:left;}
+.mod-social-share{height:16px;overflow:hidden;font:700 0/16px tahoma,sans-serif;padding:2px 5px;clear:both;margin:10px 0;}
+.mod-social-share b{vertical-align:top;font:12px/16px tahoma,sans-serif;color:#666;}
+.mod-social-share a{width:16px;height:16px;display:inline-block;*display:inline;*zoom:1;margin-right:7px;background:url(/images/bgs_share_system.png) no-repeat 0 20px;}	
+.mod-social-share a#share_tqq{background-position:0 -100px;}
+.mod-social-share a#share_sina{background-position:0 -120px;}
+.mod-social-share a#share_kaixin{background-position:0 -140px;}
+.mod-social-share a#share_renren{background-position:0 -160px;}
+.mod-social-share a#share_qzone{background-position:0 -180px;}
+</style>
+
+
+<script type="text/javascript">
+
+function reloadmyson() { 
+
+ picTree = fileList2;
+
+var jsElem = document.createElement('script');
+jsElem.src='js/cartoon_detail_scroll.js';
+
+
+$("#layoutbt").fadeOut();
+$("#pic-list").hide();
+$("#_logo").fadeOut();
+$("#hidediv").fadeOut();
+$("#pic-list").fadeIn(2000);
+$("#welcometitle").fadeIn(1000);
+document.getElementsByTagName('head')[0].appendChild(jsElem);
+
+
+
+}
+
+
+</script>
+
+
+<script type="text/javascript">
+
+var chapterTree =['preview'];
+
+picTree=['\/preview.JPG'];
+var pic_base = '';
+
+var chapter_base = 'http://wusagi.pw';
+var currentPageIndex=0;
+var currentPic = 0;
+var currentChapterid = 'preview.html';
+
+
+
+</script>
+
+
+
+</body></html>
